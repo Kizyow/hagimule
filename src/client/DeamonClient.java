@@ -1,8 +1,10 @@
-public DeamonClient {
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class DeamonClient {
 
     public static void main (String[] str) {
         try {
-            int targetPort;
             ServerSocket serverFile = new ServerSocket(8080);
             while (true) {
                 // Randomly choose one of the target servers
