@@ -2,7 +2,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FileRequest implements Serializable {
+public class FileRequest {
     String fileName;
     List<FileRequestChunk> fileChunks = new ArrayList<>();
 
