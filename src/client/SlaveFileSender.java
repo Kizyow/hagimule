@@ -1,8 +1,7 @@
-import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.net.ServerSocket;
+import java.io.RandomAccessFile;
 import java.net.Socket;
 
 public class SlaveFileSender extends Thread {
@@ -14,23 +13,25 @@ public class SlaveFileSender extends Thread {
     public void run() {
     try {
         System.out.println("Dans Slave");
-        FileRequestChunk requesterIS = (FileRequestChunk) (new ObjectInputStream(fileRequest.getInputStream())).readObject();
-        OutputStream requesterOS = fileRequest.getOutputStream();
+        ObjectInputStream ois = new ObjectInputStream(fileRequest.getInputStream());
+        FileRequestChunk requesterIS = (FileRequestChunk) ois.readObject();
+        ois.close();
 
+        byte[] chunkContent = new byte[requesterIS.getEndingByte()-requesterIS.getStartingByte()]; // Pas +1 ?
 
-        byte[] buffer = new byte[1024];
-        
-        //TODO Continue here.
-        /*
-        bytesRead = serverIS.read(buffer);
-        if (bytesRead > 0) {
-            clientOS.write(buffer, 0, bytesRead);
-            clientOS.flush();
-        };
-
-        socketServer.close();
-        clientSocket.close();
-        */
+        try {
+            RandomAccessFile file = new RandomAccessFile("../resources/"+requesterIS.getFileName(),"r");
+            file.seek(requesterIS.getStartingByte());
+            file.readFully(chunkContent);
+            file.close();
+        } catch (Exception e) {
+            System.out.println("Erreur lors de la lecture du fichier: "+requesterIS.getFileName());
+        }
+        Socket socket = new Socket("localhost", 8080);
+        OutputStream os = socket.getOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(os);
+        oos.writeObject(requesterIS);
+        socket.close();
     } catch (Exception e) {
         System.out.println("An error has occurred ...");
     }

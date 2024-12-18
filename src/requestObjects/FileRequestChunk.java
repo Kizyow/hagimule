@@ -1,16 +1,16 @@
 import java.io.Serializable;
 
 public class FileRequestChunk implements Serializable {
-    String fileName;
-    int startingByte;
-    int endingByte;
-    byte[] chunk;
+    private String fileName;
+    private int startingByte;
+    private int endingByte;
+    private byte[] chunk;
 
     public FileRequestChunk(String fileName, int startingByte, int endingByte) {
         this.fileName = fileName;
         this.startingByte = startingByte;
         this.endingByte = endingByte;
-        chunk = new byte[endingByte-startingByte];
+        this.chunk = null;
     }
 
     public String getFileName() {
