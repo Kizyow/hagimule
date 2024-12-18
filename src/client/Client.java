@@ -4,7 +4,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.List;;;
 
 public class Client implements ServiceClient {
 
