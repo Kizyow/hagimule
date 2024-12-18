@@ -1,5 +1,11 @@
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -7,10 +13,14 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
+import java.util.Random;
 
 public class LancerClient {
 
+
     public static void main(String[] args) {
+        Random random = new Random();
+
         try {
 
             if (args.length != 2) {
@@ -19,12 +29,28 @@ public class LancerClient {
             } else {
                 String ipServeur = args[0];
                 int portAnnuaire = Integer.parseInt(args[1]);
+                
+                int clientePort = 8080 + random.nextInt(10);
+
+                new Thread(() -> {
+                try {
+                    ServerSocket serverFile = new ServerSocket(clientePort);
+                    System.out.println("ServerSocket Lancé sur " + clientePort);
+                    while (true) {
+                        // Randomly choose one of the target servers
+                        Socket fileRequest = serverFile.accept();
+                        // Create a new Slave to handle this request
+                        new SlaveFileSender(fileRequest).start();
+                    }
+                } catch (Exception e) {
+                    System.out.println("An error has occurred ...");
+                }}).start();
 
 
                 Registry reg = LocateRegistry.getRegistry(ipServeur, portAnnuaire);
                 ServiceDiary diary = (ServiceDiary) reg.lookup("hagimule");
 
-                Client client = new Client();
+                Client client = new Client(new InetSocketAddress(clientePort));
                 File file = new File("../../resources/test1.txt");
                 client.ajouterFichier(file);
                 client.ajouterFichier(new File("../../resources/video.mkv"));
@@ -32,14 +58,14 @@ public class LancerClient {
                 int Un_port = 0;
                 ServiceClient service = (ServiceClient) UnicastRemoteObject.exportObject(client, Un_port);
 
-                diary.enregisterClient(client);
+                diary.enregisterClient(service);
 
                 System.out.println("Connexion etablie à l'annuaire");
 
                 FileData fileData = new FileData(file.getName(), Files.size(file.toPath()));
                 List<ServiceClient> clientList = diary.telechargerFichier(fileData); //Liste clients qui possèdent le fichier
 
-                if (clientList.isEmpty()) {
+                if (clientList.stream().filter(t -> !t.equals(service)).toList().isEmpty()) {
                     System.out.println("Aucun client ne possède le fichier demandé.");
                     return; //il faut arrêter
                 }
@@ -51,6 +77,7 @@ public class LancerClient {
                 //Commencer par trois ou quatre clients. Divise le fichier par le nombre de clients disponibles. --> Ou plutôt nombre fixe de chunks peu importe le client
 
                 //Création des fragments de fichier
+                String fileName = fileData.getFilename();
                 File outputFile = new File("downloaded_" + fileName); 
                 try (FileOutputStream fos = new FileOutputStream(outputFile)) {
 
@@ -63,17 +90,16 @@ public class LancerClient {
 
                     while(true){
 
-                        for (ServiceClient client : clientList){ //Pacours la liste des clients qui possèdent le fichier
+                        for (ServiceClient clientI : clientList){ //Pacours la liste des clients qui possèdent le fichier
 
                             try {
 
-                                String clientAddress = client.getAddress();
-                                int clientPort = client.getPort();
+                                InetSocketAddress clientAddress = clientI.getSocketAddress();
 
-                                System.out.println("Connexion au client " + clientAddress + ":" + clientPort);
+                                System.out.println("Connexion au client " + clientAddress.getHostName() + ":" + clientAddress.getPort());
 
                                 //Connexion au client par une socket
-                                try (Socket socket = new Socket(clientAddress, clientPort);
+                                try (Socket socket = new Socket(clientAddress.getHostName(), clientAddress.getPort());
                                     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
                                     ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
 
@@ -105,8 +131,6 @@ public class LancerClient {
                     }
 
                 }
-
-                
 
             }
 

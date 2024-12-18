@@ -4,14 +4,16 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.List;;;
+import java.util.List;
 
 public class Client implements ServiceClient {
 
     private List<FileData> fileDataList;
+    private InetSocketAddress ip;
 
-    public Client(){
+    public Client(InetSocketAddress ip){
         this.fileDataList = new ArrayList<>();
+        this.ip = ip;
     }
 
     public void ajouterFichier(File file){
@@ -32,7 +34,41 @@ public class Client implements ServiceClient {
     }
 
     public InetSocketAddress getSocketAddress() throws RemoteException {
-        return null;
+        return ip;
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((fileDataList == null) ? 0 : fileDataList.hashCode());
+        result = prime * result + ((ip == null) ? 0 : ip.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Client other = (Client) obj;
+        if (fileDataList == null) {
+            if (other.fileDataList != null)
+                return false;
+        } else if (!fileDataList.equals(other.fileDataList))
+            return false;
+        if (ip == null) {
+            if (other.ip != null)
+                return false;
+        } else if (!ip.equals(other.ip))
+            return false;
+        return true;
+    }
+
+    
+
 
 }
