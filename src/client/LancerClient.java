@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
@@ -30,7 +31,7 @@ public class LancerClient {
                 String ipServeur = args[0];
                 int portAnnuaire = Integer.parseInt(args[1]);
                 
-                int clientePort = 8080 + random.nextInt(10);
+                int clientePort = 8080 + random.nextInt(1000);
 
                 new Thread(() -> {
                 try {
@@ -50,7 +51,7 @@ public class LancerClient {
                 Registry reg = LocateRegistry.getRegistry(ipServeur, portAnnuaire);
                 ServiceDiary diary = (ServiceDiary) reg.lookup("hagimule");
 
-                Client client = new Client(new InetSocketAddress(clientePort));
+                Client client = new Client(new InetSocketAddress("localhost", clientePort));
                 File file = new File("../../resources/test1.txt");
                 client.ajouterFichier(file);
                 client.ajouterFichier(new File("../../resources/video.mkv"));
@@ -88,47 +89,58 @@ public class LancerClient {
                     //Partie socket//
                     /////////////////
 
-                    while(true){
 
-                        for (ServiceClient clientI : clientList){ //Pacours la liste des clients qui possèdent le fichier
+                    for (ServiceClient clientI : clientList){ //Pacours la liste des clients qui possèdent le fichier
 
-                            try {
+                        try {
 
-                                InetSocketAddress clientAddress = clientI.getSocketAddress();
+                            InetSocketAddress clientAddress = clientI.getSocketAddress();
 
-                                System.out.println("Connexion au client " + clientAddress.getHostName() + ":" + clientAddress.getPort());
+                            System.out.println("Connexion au client " + clientAddress.getHostName() + ":" + clientAddress.getPort());
 
-                                //Connexion au client par une socket
-                                try (Socket socket = new Socket(clientAddress.getHostName(), clientAddress.getPort());
-                                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                                    ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+                            //Connexion au client par une socket
+                            try (Socket socket = new Socket(clientAddress.getHostName(), clientAddress.getPort())) {
 
-                                    //Créé et envoit un FileRequestChunk
-                                    FileRequestChunk requestChunk = new FileRequestChunk(fileName, startingByte, startingByte + chunkSize);
-                                    oos.writeObject(requestChunk);
-                               
+                                System.out.println("connecté ??" + socket.isConnected());
+                                
 
-                                    //Récupère nouveau chunk
-                                    FileRequestChunk responseChunk = (FileRequestChunk) ois.readObject();
+                                ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                                System.out.println("OUTPUT STREAM ??" + oos);
 
-                                    //Ecrit le fragment dans le fichier
-                                    fos.write(responseChunk.getChunk());
-                                    System.out.println("Reçu et écrit : bytes [" + startingByte + " - " + responseChunk.getEndingByte() + "]");
 
-                                    startingByte = responseChunk.getEndingByte(); //Met à jour le starting byte -> prendra le fragments suivant
+                                //Créé et envoit un FileRequestChunk
+                                FileRequestChunk requestChunk = new FileRequestChunk(fileName, startingByte, startingByte + chunkSize);
+                                oos.writeObject(requestChunk);
+                            
+                                System.out.println("CHUNK ECRIT" + requestChunk);
 
-                                    //Problème : qu'est ce qu'il se passe pour le dernier fragment qui fait peut être moins que la taille de chunk fixée ?
-                                    
-                                    break; //On sort pour passer au prochain fragment
-                                }
+                                InputStream is = socket.getInputStream();
+                                System.out.println("INPUUUUT STREAM:" + is);
+                                ObjectInputStream ois = new ObjectInputStream(is);
+                                System.out.println("OBJECT INPUT STRAM" + ois);
 
-                            } catch (Exception e) {
-                                //Prevu de gérer ce qui se passe si n'arrive pas a récupérer un fragment chez un client : doit passer à un autre
-                                System.err.println("Échec de connexion avec un client, essaye avec le client suivant...");
+                                //Récupère nouveau chunk
+                                FileRequestChunk responseChunk = (FileRequestChunk) ois.readObject();
+
+                                //Ecrit le fragment dans le fichier
+                                fos.write(responseChunk.getChunk());
+                                System.out.println("Reçu et écrit : bytes [" + startingByte + " - " + responseChunk.getEndingByte() + "]");
+
+                                startingByte = responseChunk.getEndingByte(); //Met à jour le starting byte -> prendra le fragments suivant
+
+                                //Problème : qu'est ce qu'il se passe pour le dernier fragment qui fait peut être moins que la taille de chunk fixée ?
+                                
                             }
+
+
+                        } catch (Exception e) {
+                            //Prevu de gérer ce qui se passe si n'arrive pas a récupérer un fragment chez un client : doit passer à un autre
+                            System.err.println("Échec de connexion avec un client, essaye avec le client suivant...");
                         }
-                    
                     }
+                    
+                    System.out.println("DOWNLOAD FINISH, JAVA TOURNE TJRS CAR SERVEUR QUI ECOUTE");
+
 
                 }
 
@@ -141,6 +153,8 @@ public class LancerClient {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+
     }
 
 }
