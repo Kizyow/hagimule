@@ -82,7 +82,7 @@ public class LancerClient {
                 File outputFile = new File("downloaded_" + fileName); 
                 try (FileOutputStream fos = new FileOutputStream(outputFile)) {
 
-                    int chunkSize = 1024 * 1024 * 50; //50 mo (taille d'un fragment) Compter en octet ou en byte ??
+                    int chunkSize = (int) fileData.getLength() / clientList.size(); //50 mo (taille d'un fragment) Compter en octet ou en byte ??
                     int startingByte = 0; //position du byte de départ (0 pour le premier fragment)
                 
                     /////////////////

@@ -17,8 +17,7 @@ public class SlaveFileSender extends Thread {
         FileRequestChunk requesterIS = (FileRequestChunk) ois.readObject();
 
         // On créer le tableau de byte qui contiendra le morceau de fichier
-        byte[] chunkContent = new byte[0]; // Pas +1 ?
-
+        byte[] chunkContent = new byte[requesterIS.getEndingByte() - requesterIS.getStartingByte()]; // Pas +1 ?
         try {
             // On utiliser RandomAccessFile pour lire la portion spécifique du fichier
             System.out.println("TEST 1");
@@ -27,9 +26,13 @@ public class SlaveFileSender extends Thread {
             file.seek(requesterIS.getStartingByte()); // On se place au début à lire
             System.out.println("SEEK");
 
-            int taille = (int) file.length();
-            chunkContent = new byte[taille];
-            System.out.println("TAILLLE CHUNKK " + taille);
+            if (requesterIS.getEndingByte() == (int) file.length()-1){
+                chunkContent = new byte[requesterIS.getEndingByte() - requesterIS.getStartingByte() + 1];
+            }
+
+            // int taille = (int) file.length();
+            // chunkContent = new byte[taille];
+            //System.out.println("TAILLLE CHUNKK " + taille);
 
             file.readFully(chunkContent); // On lit jusqu'à ce qu'on ait remplis le tableau (ou moins si fichier fini d'être lu)
             System.out.println("READ FULLY");
