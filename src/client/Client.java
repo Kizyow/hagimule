@@ -1,10 +1,13 @@
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 
 public class Client implements ServiceClient {
 
@@ -16,8 +19,43 @@ public class Client implements ServiceClient {
         this.ip = ip;
     }
 
+    //Methods for data compression (should it be in a different class ?)
+    public static boolean isCompressed(String fileName) throws IOException {
+        FileInputStream fileInputStream = new FileInputStream(fileName);
+        byte[] header = new byte[2];
+        int bytesRead = fileInputStream.read(header);
+        fileInputStream.close();
+
+        if (bytesRead == 2) {
+            return header[0] == (byte) 0x1F && header[1] == (byte) 0x8B;
+        }
+        return false;
+    }
+
+    public static void compressFile(String inputFileName, String outputFileName) throws IOException {
+        FileInputStream fileInputStream = new FileInputStream(inputFileName);
+        FileOutputStream fileOutputStream = new FileOutputStream(outputFileName);
+        GZIPOutputStream gzipOutputStream = new GZIPOutputStream(fileOutputStream);
+
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+            gzipOutputStream.write(buffer, 0, bytesRead);
+        }
+
+        fileInputStream.close();
+        gzipOutputStream.close();
+    }
+    //
+
+
     public void ajouterFichier(File file){
         try {
+            //if the file is not already compressed in gzip format, we compressed it before adding it to the diary
+            if (!isCompressed(file.getName())){
+                compressFile(file.getName(), file.getName()+".gz");
+            }
+
             FileData fileData = new FileData(file.getName(), Files.size(file.toPath()));
             this.fileDataList.add(fileData);
         } catch (IOException e) {

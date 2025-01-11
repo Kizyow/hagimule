@@ -1,4 +1,5 @@
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.GZIPInputStream;
 
 public class LancerClient {
 
@@ -81,12 +83,18 @@ public class LancerClient {
                 System.out.println("Téléchargement du fichier : " + fileData.getFilename());
                 System.out.println("Disponible chez " + clientList.size() + " clients");
 
-                //Objectif : demander fichiers aux clients : découpage : définir début et fin de chaque morceau 
-                //Commencer par trois ou quatre clients. Divise le fichier par le nombre de clients disponibles.
+                //Divise le fichier par le nombre de clients disponibles.
 
                 //Création des fragments de fichier
                 String fileName = fileData.getFilename();
-                File outputFile = new File("downloaded_" + fileName); 
+
+                String outputFileGzipName = "downloaded_" + fileName;
+                if (!fileName.endsWith(".gz")) {
+                    outputFileGzipName = outputFileGzipName + "gz";
+                }
+
+                File outputFileGzip = new File(outputFileGzipName);
+
 
                 try {
 
@@ -143,7 +151,7 @@ public class LancerClient {
                     }
                     System.out.println("Téléchargement des fragments complété.");
 
-                    FileOutputStream fos = new FileOutputStream(outputFile);
+                    FileOutputStream fos = new FileOutputStream(outputFileGzip);
 
                     // On écrit dans le fichier final dans l'ordre des fragments
                     for (int i = 0; i < totalSize; i += chunkSize) {
@@ -153,7 +161,25 @@ public class LancerClient {
                     }
 
                     fos.close();
-                    System.out.println("Écriture du fichier downloaded_test1.txt completé");
+
+                    //Enlève l'extension .gz dans le nom du fichier de sortie
+                    File outputFile = new File(outputFileGzipName.substring(0, outputFileGzipName.length() - 3));
+
+                    //On décompresse le fichier recomposé
+                    FileInputStream compressedFis = new FileInputStream(outputFileGzip);
+                    GZIPInputStream gzipInputStream = new GZIPInputStream(compressedFis);
+                    FileOutputStream decompressedFos = new FileOutputStream(outputFile);
+
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = gzipInputStream.read(buffer)) != -1) {
+                        decompressedFos.write(buffer, 0, bytesRead);
+                    }
+
+                    gzipInputStream.close();
+                    decompressedFos.close();
+
+                    System.out.println("Écriture du fichier "+ outputFile.getName() +" completée");
 
                 } catch(IOException | InterruptedException e){
                     e.printStackTrace();
