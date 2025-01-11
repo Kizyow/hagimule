@@ -21,7 +21,7 @@ public class Client implements ServiceClient {
 
     //Methods for data compression (should it be in a different class ?)
     public static boolean isCompressed(String fileName) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(fileName);
+        FileInputStream fileInputStream = new FileInputStream("../../resources/"+fileName);
         byte[] header = new byte[2];
         int bytesRead = fileInputStream.read(header);
         fileInputStream.close();
@@ -32,9 +32,12 @@ public class Client implements ServiceClient {
         return false;
     }
 
-    public static void compressFile(String inputFileName, String outputFileName) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(inputFileName);
-        FileOutputStream fileOutputStream = new FileOutputStream(outputFileName);
+    public static File compressFile(String inputFileName, String outputFileName) throws IOException {
+        File inputFile = new File("../../resources/" + inputFileName);
+        File outputFile = new File("../../resources/" + outputFileName);
+
+        FileInputStream fileInputStream = new FileInputStream(inputFile);
+        FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(fileOutputStream);
 
         byte[] buffer = new byte[1024];
@@ -45,6 +48,9 @@ public class Client implements ServiceClient {
 
         fileInputStream.close();
         gzipOutputStream.close();
+
+        return outputFile;
+
     }
     //
 
@@ -53,7 +59,7 @@ public class Client implements ServiceClient {
         try {
             //if the file is not already compressed in gzip format, we compressed it before adding it to the diary
             if (!isCompressed(file.getName())){
-                compressFile(file.getName(), file.getName()+".gz");
+                file = compressFile(file.getName(), file.getName()+".gz");
             }
 
             FileData fileData = new FileData(file.getName(), Files.size(file.toPath()));
