@@ -13,8 +13,11 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LancerClient {
 
@@ -34,26 +37,26 @@ public class LancerClient {
                 int clientePort = 8080 + random.nextInt(1000);
 
                 new Thread(() -> {
-                try {
-                    ServerSocket serverFile = new ServerSocket(clientePort);
-                    System.out.println("ServerSocket Lancé sur " + clientePort);
-                    while (true) {
-                        // Randomly choose one of the target servers
-                        Socket fileRequest = serverFile.accept();
-                        // Create a new Slave to handle this request
-                        new SlaveFileSender(fileRequest).start();
+                    try {
+                        ServerSocket serverFile = new ServerSocket(clientePort);
+                        System.out.println("ServerSocket Lancé sur " + clientePort);
+                        while (true) {
+                            // Randomly choose one of the target servers
+                            Socket fileRequest = serverFile.accept();
+                            // Create a new Slave to handle this request
+                            new SlaveFileSender(fileRequest).start();
+                        }
+                    } catch (Exception e) {
+                        System.out.println("An error has occurred ...");
                     }
-                } catch (Exception e) {
-                    System.out.println("An error has occurred ...");
-                }}).start();
+                }).start();
 
 
                 Registry reg = LocateRegistry.getRegistry(ipServeur, portAnnuaire);
                 ServiceDiary diary = (ServiceDiary) reg.lookup("hagimule");
 
                 Client client = new Client(new InetSocketAddress("localhost", clientePort));
-                File file = new File("../../resources/test1.txt");
-                client.ajouterFichier(file);
+                client.ajouterFichier(new File("../../resources/test1.txt"));
                 client.ajouterFichier(new File("../../resources/video.mkv"));
 
                 int Un_port = 0;
@@ -63,7 +66,11 @@ public class LancerClient {
 
                 System.out.println("Connexion etablie à l'annuaire");
 
-                FileData fileData = new FileData(file.getName(), Files.size(file.toPath()));
+                // PARTIE TELECHARGEMENT
+
+                File dlFile = new File("../../resources/1GB.bin");
+
+                FileData fileData = new FileData(dlFile.getName(), Files.size(dlFile.toPath()));
                 List<ServiceClient> clientList = diary.telechargerFichier(fileData); //Liste clients qui possèdent le fichier
 
                 if (clientList.stream().filter(t -> !t.equals(service)).toList().isEmpty()) {
@@ -75,73 +82,81 @@ public class LancerClient {
                 System.out.println("Disponible chez " + clientList.size() + " clients");
 
                 //Objectif : demander fichiers aux clients : découpage : définir début et fin de chaque morceau 
-                //Commencer par trois ou quatre clients. Divise le fichier par le nombre de clients disponibles. --> Ou plutôt nombre fixe de chunks peu importe le client
+                //Commencer par trois ou quatre clients. Divise le fichier par le nombre de clients disponibles.
 
                 //Création des fragments de fichier
                 String fileName = fileData.getFilename();
                 File outputFile = new File("downloaded_" + fileName); 
-                try (FileOutputStream fos = new FileOutputStream(outputFile)) {
 
-                    int chunkSize = (int) fileData.getLength() / clientList.size(); //50 mo (taille d'un fragment) Compter en octet ou en byte ??
-                    int startingByte = 0; //position du byte de départ (0 pour le premier fragment)
-                
-                    /////////////////
-                    //Partie socket//
-                    /////////////////
+                try {
 
+                    int chunkSize = (int) fileData.getLength() / clientList.size();
+                    int totalSize = (int) fileData.getLength();
+    
+                    List<Thread> threads = new ArrayList<>();
+                    Map<Integer, byte[]> chunkMap = new ConcurrentHashMap<>(); // Dictionnaire pour stocker les fragments, ConcurrentHashMap permet le threading
 
-                    for (ServiceClient clientI : clientList){ //Pacours la liste des clients qui possèdent le fichier
+                    for(int i = 0; i < clientList.size(); i++){
 
-                        try {
+                        final int startingByte = i * chunkSize;
+                        final int endingByte = startingByte + chunkSize;
+                        final ServiceClient clientI = clientList.get(i);
 
-                            InetSocketAddress clientAddress = clientI.getSocketAddress();
+                        Thread thread = new Thread(() -> {
+                            try {
 
-                            System.out.println("Connexion au client " + clientAddress.getHostName() + ":" + clientAddress.getPort());
+                                InetSocketAddress clientAddress = clientI.getSocketAddress();
+                                System.out.println("Connexion au client " + clientAddress.getHostName() + ":" + clientAddress.getPort());
 
-                            //Connexion au client par une socket
-                            try (Socket socket = new Socket(clientAddress.getHostName(), clientAddress.getPort())) {
+                                //Connexion au client par une socket
+                                try (Socket socket = new Socket(clientAddress.getHostName(), clientAddress.getPort())) {
+                                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 
-                                System.out.println("connecté ??" + socket.isConnected());
+                                    //Créé et envoit un FileRequestChunk
+                                    FileRequestChunk requestChunk = new FileRequestChunk(fileName, startingByte, endingByte);
+                                    oos.writeObject(requestChunk);
                                 
+                                    InputStream is = socket.getInputStream();
+                                    ObjectInputStream ois = new ObjectInputStream(is);
 
-                                ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                                System.out.println("OUTPUT STREAM ??" + oos);
+                                    //Récupère nouveau chunk
+                                    FileRequestChunk responseChunk = (FileRequestChunk) ois.readObject();
+                                    chunkMap.put(startingByte, responseChunk.getChunk()); // Stocker dans un dicitonnaire
 
+                                    System.out.println("Reçu et enregistré : bytes [" + startingByte + " - " + responseChunk.getEndingByte() + "]");
 
-                                //Créé et envoit un FileRequestChunk
-                                FileRequestChunk requestChunk = new FileRequestChunk(fileName, startingByte, startingByte + chunkSize);
-                                oos.writeObject(requestChunk);
-                            
-                                System.out.println("CHUNK ECRIT" + requestChunk);
+                                }
 
-                                InputStream is = socket.getInputStream();
-                                System.out.println("INPUUUUT STREAM:" + is);
-                                ObjectInputStream ois = new ObjectInputStream(is);
-                                System.out.println("OBJECT INPUT STRAM" + ois);
-
-                                //Récupère nouveau chunk
-                                FileRequestChunk responseChunk = (FileRequestChunk) ois.readObject();
-
-                                //Ecrit le fragment dans le fichier
-                                fos.write(responseChunk.getChunk());
-                                System.out.println("Reçu et écrit : bytes [" + startingByte + " - " + responseChunk.getEndingByte() + "]");
-
-                                startingByte = responseChunk.getEndingByte(); //Met à jour le starting byte -> prendra le fragments suivant
-
-                                //Problème : qu'est ce qu'il se passe pour le dernier fragment qui fait peut être moins que la taille de chunk fixée ?
-                                
+                            } catch (Exception e) {
+                                System.err.println("Échec de connexion avec un client, essaye avec le client suivant...");
                             }
+                        });
 
+                        threads.add(thread);
+                        thread.start();
 
-                        } catch (Exception e) {
-                            //Prevu de gérer ce qui se passe si n'arrive pas a récupérer un fragment chez un client : doit passer à un autre
-                            System.err.println("Échec de connexion avec un client, essaye avec le client suivant...");
+                    }
+
+                    // On attends que tout les fragments soient download
+                    for (Thread thread : threads) {
+                        thread.join();
+                    }
+                    System.out.println("Téléchargement des fragments complété.");
+
+                    FileOutputStream fos = new FileOutputStream(outputFile);
+
+                    // On écrit dans le fichier final dans l'ordre des fragments
+                    for (int i = 0; i < totalSize; i += chunkSize) {
+                        if (chunkMap.containsKey(i)) {
+                            fos.write(chunkMap.get(i));
                         }
                     }
-                    
-                    System.out.println("DOWNLOAD FINISH, JAVA TOURNE TJRS CAR SERVEUR QUI ECOUTE");
 
+                    fos.close();
+                    System.out.println("Écriture du fichier downloaded_test1.txt completé");
 
+                } catch(IOException | InterruptedException e){
+                    e.printStackTrace();
                 }
 
             }
