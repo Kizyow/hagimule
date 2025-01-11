@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.zip.GZIPOutputStream;
 
 public class Client implements ServiceClient {
@@ -19,22 +20,9 @@ public class Client implements ServiceClient {
         this.ip = ip;
     }
 
-    //Methods for data compression (should it be in a different class ?)
-    public static boolean isCompressed(String fileName) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream("../../resources/"+fileName);
-        byte[] header = new byte[2];
-        int bytesRead = fileInputStream.read(header);
-        fileInputStream.close();
-
-        if (bytesRead == 2) {
-            return header[0] == (byte) 0x1F && header[1] == (byte) 0x8B;
-        }
-        return false;
-    }
-
-    public static File compressFile(String inputFileName, String outputFileName) throws IOException {
-        File inputFile = new File("../../resources/" + inputFileName);
-        File outputFile = new File("../../resources/" + outputFileName);
+        public static File compressFile(String inputFileName, String outputFileName) throws IOException {
+        File inputFile = new File(inputFileName);
+        File outputFile = new File(outputFileName);
 
         FileInputStream fileInputStream = new FileInputStream(inputFile);
         FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
@@ -52,25 +40,32 @@ public class Client implements ServiceClient {
         return outputFile;
 
     }
-    //
 
-
-    public void ajouterFichier(File file){
+    public void ajouterFichier(File file, boolean compress){
         try {
-            //if the file is not already compressed in gzip format, we compressed it before adding it to the diary
-            if (!isCompressed(file.getName())){
-                file = compressFile(file.getName(), file.getName()+".gz");
+
+            if(compress){
+                File directory = file.getParentFile();
+                String gzFileName = file.getPath() + ".gz";
+
+                boolean gzExists = new File(directory, gzFileName).exists();
+
+                if (!gzExists){
+                    System.out.println("Compression du fichier en cours... Cela peut prendre un moment");
+                    file = compressFile(file.getPath(), gzFileName);
+                }
             }
 
-            FileData fileData = new FileData(file.getName(), Files.size(file.toPath()));
+            FileData fileData = new FileData(file.getName(), file.getPath(), Files.size(file.toPath()));
             this.fileDataList.add(fileData);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void supprimerFichier(File file){
-        // TODO
+    public void supprimerFichier(String fileName){
+        Optional<FileData> optFD = fileDataList.stream().filter(fd -> fd.getFilename().equals(fileName)).findFirst();
+        optFD.ifPresent(fd -> fileDataList.remove(fd));
     }
 
     public List<FileData> listeFichiers() throws RemoteException {

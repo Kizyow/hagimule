@@ -1,6 +1,8 @@
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Diary implements ServiceDiary {
 
@@ -24,19 +26,35 @@ public class Diary implements ServiceDiary {
     }
 
     @Override
-    public List<ServiceClient> telechargerFichier(FileData fileData) throws RemoteException {
+    public List<ServiceClient> telechargerFichier(String fileName) throws RemoteException {
         List<ServiceClient> clientFichier = new ArrayList<>();
-        this.clients.forEach(client -> {
+        new ArrayList<>(clients).forEach(client -> {
             try {
-                if(client.listeFichiers().contains(fileData)){
+                if(client.listeFichiers().stream().map(fd -> fd.getFilename()).anyMatch(fn -> fn.equals(fileName))){
                     clientFichier.add(client);
                 }
             } catch (RemoteException e) {
                 System.err.println("Liste de fichier d'un client inaccessible");
-                throw new RuntimeException(e);
+                System.err.println("    |-> Ce client a été retiré de l'annuaire, il s'est deconnecté");
+                this.clients.remove(client);
             }
         });
         return clientFichier;
+    }
+
+    @Override
+    public Set<FileData> listeFichiers() throws RemoteException {
+        Set<FileData> listFiles = new HashSet<>();
+        new ArrayList<>(clients).forEach(client -> {
+            try {
+                client.listeFichiers().forEach(fD ->listFiles.add(fD));
+            } catch (RemoteException e) {
+                System.err.println("Liste de fichier d'un client inaccessible");
+                System.err.println("    |-> Ce client a été retiré de l'annuaire, il s'est deconnecté");
+                this.clients.remove(client);
+            }
+        });
+        return listFiles;
     }
 
     @Override

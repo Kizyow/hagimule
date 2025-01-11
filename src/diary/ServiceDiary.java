@@ -1,6 +1,7 @@
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
+import java.util.Set;
 
 public interface ServiceDiary extends Remote {
 
@@ -8,7 +9,9 @@ public interface ServiceDiary extends Remote {
 
     void retirerClient(ServiceClient client) throws RemoteException;
 
-    List<ServiceClient> telechargerFichier(FileData fileData) throws RemoteException;
+    List<ServiceClient> telechargerFichier(String fileName) throws RemoteException;
+
+    Set<FileData> listeFichiers() throws RemoteException;
 
     boolean isAlive() throws RemoteException;
 
