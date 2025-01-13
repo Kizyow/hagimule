@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -51,10 +52,10 @@ public class LancerClient {
                 Thread serverSocketThread = cli.partagerFichiers(socketPort);
 
                 // PARTIE ENREGISTREMENT DES INFOS DU CLIENT DANS L'ANNUAIRE
-                InetSocketAddress clientIp = new InetSocketAddress(socketPort);
+                InetSocketAddress clientIp = new InetSocketAddress(Inet4Address.getLocalHost().getHostAddress(),socketPort);
                 Client client = new Client(clientIp);
 
-                // On se connecte à l'annuaire
+                // On se connecte à l'annuaire 
                 Registry reg = LocateRegistry.getRegistry(ipServeur, portAnnuaire);
                 ServiceDiary diary = (ServiceDiary) reg.lookup("hagimule");
 
