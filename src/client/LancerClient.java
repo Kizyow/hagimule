@@ -17,6 +17,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -220,6 +222,8 @@ public class LancerClient {
             List<Integer> errorChunk = new ArrayList<>();
 
             List<ServiceClient> clientListCopy = new ArrayList<>(clientList);
+            Instant startTime = Instant.now();
+
             for(int i = 0; i < clientListCopy.size(); i++){
 
                 final int startingByte = i * chunkSize;
@@ -246,6 +250,16 @@ public class LancerClient {
                 thread.join();
             }
             System.out.println("Téléchargement des fragments complété.");
+            Instant finishTime = Instant.now();
+            long timeElapsed = Duration.between(startTime, finishTime).toMillis(); 
+            System.out.println("Durée du téléchargement : " + timeElapsed + " millisecondes");
+            System.out.println("Taille du fichier : " + totalSize + " octets");
+            double timeElapsedInSeconds = timeElapsed / 1000.0;
+            double totalSizeInBits = totalSize * 8.0;
+
+            double mbps = totalSizeInBits / (timeElapsedInSeconds * 1_000_000);
+            System.out.println("Vitesse moyenne de téléchargement : " + mbps + " Mbps");
+
 
             if(!errorChunk.isEmpty() && clientList.size() > 0){
                 System.out.println("Téléchargements des fragments manquants.");
