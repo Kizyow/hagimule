@@ -20,7 +20,7 @@ public class Client implements ServiceClient {
         this.ip = ip;
     }
 
-        public static File compressFile(String inputFileName, String outputFileName) throws IOException {
+    public static File compressFile(String inputFileName, String outputFileName) throws IOException {
         File inputFile = new File(inputFileName);
         File outputFile = new File(outputFileName);
 
