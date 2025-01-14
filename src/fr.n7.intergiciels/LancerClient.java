@@ -31,7 +31,7 @@ import java.util.zip.GZIPInputStream;
 public class LancerClient {
 
     private volatile boolean running = true;
-    private final static boolean COMPRESS = false;
+    private final static boolean COMPRESS = true;
 
     public static void main(String[] args) {
 
