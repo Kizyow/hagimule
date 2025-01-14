@@ -9,7 +9,7 @@ Un projet étudiant à destination de Intergiciels à l'ENSEEIHT où on doit met
 
 # Prodécure pour compiler le projet
 
-1. Se mettre dans le repertoire src/ et faire `javac *.java`
+1. Se mettre dans le repertoire src/n7 et faire `javac *.java`
  
 # Procédure pour lancer le projet :
 
